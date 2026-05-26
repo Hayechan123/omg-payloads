@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>WARNING - SYSTEM COMPROMISED</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #ff0000;
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      padding: 15px;
+      overflow: hidden;
+    }
+    .skull {
+      font-size: 64px;
+      text-align: center;
+      margin: 10px 0;
+      animation: blink 0.6s infinite;
+    }
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+    h1 {
+      text-align: center;
+      font-size: 26px;
+      color: #ff0000;
+      text-shadow: 0 0 12px #ff0000;
+      margin: 8px 0;
+      letter-spacing: 2px;
+    }
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #aa0000;
+      margin-bottom: 12px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #300;
+      border-radius: 3px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #aa0000, #ff0000);
+      animation: fill 30s linear forwards;
+    }
+    @keyframes fill { from { width: 0%; } to { width: 100%; } }
+    .info-box {
+      border: 1px solid #550000;
+      padding: 12px 15px;
+      margin: 12px 0;
+      background: #080000;
+      border-radius: 4px;
+    }
+    .label {
+      color: #660000;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+    .value {
+      color: #ff2222;
+      font-size: 17px;
+      font-weight: bold;
+      text-shadow: 0 0 6px #ff0000;
+      word-break: break-all;
+    }
+    .row { margin-bottom: 12px; }
+    .row:last-child { margin-bottom: 0; }
+    #countdown {
+      text-align: center;
+      font-size: 52px;
+      font-weight: bold;
+      color: #ff0000;
+      text-shadow: 0 0 20px #ff0000;
+      margin: 6px 0;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { text-shadow: 0 0 10px #ff0000; }
+      50% { text-shadow: 0 0 30px #ff0000, 0 0 50px #ff0000; }
+    }
+    .countdown-label {
+      text-align: center;
+      font-size: 12px;
+      color: #aa0000;
+      margin-bottom: 12px;
+      animation: blink 1.5s infinite;
+    }
+    .log {
+      font-size: 11px;
+      color: #880000;
+      margin-top: 10px;
+      height: 130px;
+      overflow: hidden;
+      border-top: 1px solid #330000;
+      padding-top: 8px;
+    }
+    .log-line {
+      margin: 3px 0;
+      opacity: 0;
+      animation: fadeIn 0.3s forwards;
+    }
+    @keyframes fadeIn { to { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <div class="skull">&#9760;&#65039;</div>
+  <h1>&#54644;&#55208; &#45813;&#54588;&#49845;&#45768;&#45796;</h1>
+  <p class="subtitle">SYSTEM COMPROMISED &mdash; DATA BREACH IN PROGRESS</p>
+  <div class="progress-bar"><div class="progress-fill"></div></div>
+
+  <div class="info-box">
+    <div class="row">
+      <div class="label">&#9654; &#53228;&#51648;&#46108; IP &#51452;&#49548;</div>
+      <div class="value" id="ip-display">&#48516;&#49437; &#51473;...</div>
+    </div>
+    <div class="row">
+      <div class="label">&#9654; &#50948;&#52824; &#52628;&#51201; &#50756;&#47308;</div>
+      <div class="value" id="location-display">&#50948;&#52824; &#44228;&#49328; &#51473;...</div>
+    </div>
+    <div class="row">
+      <div class="label">&#9654; &#53685;&#49888;&#49324; / ISP</div>
+      <div class="value" id="isp-display">&mdash;</div>
+    </div>
+  </div>
+
+  <div id="countdown">30</div>
+  <div class="countdown-label">&#52488; &#54B9; &#44060;&#51064;&#51221;&#48372; &#51204;&#49569; &#50756;&#47308; &#128680;</div>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    const logMessages = [
+      '> [+] &#49884;&#49828;&#53596; &#52840;&#53õ&#49457; &#49457;&#44277;...',
+      '> [+] &#50672;&#46973;&#52376; &#47785;&#47197; &#49688;&#51665; &#51473;...',
+      '> [+] &#49324;&#51652; &#48143; &#46041;&#50689;&#49345; &#50629;&#47196;&#46300; &#49884;&#51089;...',
+      '> [+] &#51200;&#51109;&#46108; &#48708;&#48128;&#48264;&#54840; &#54644;&#46021; &#51473;...',
+      '> [+] GPS &#50948;&#52824; &#52628;&#51201; &#54876;&#49457;&#54868;...',
+      '> [+] &#52«; &#51032;&#47700;&#46972; &#51217;&#44540; &#44428;&#54620; &#54629;&#46301;...',
+      '> [+] &#47560;&#51060;&#53356; &#46020;&#52397; &#49884;&#51089;...',
+      '> [+] &#44552;&#50735; &#50545; &#51221;&#48372; &#49828;&#52272; &#51473;...',
+      '> [+] &#48177;&#46020;&#50612; &#49444;&#52824; &#50756;&#47308;...',
+      '> [+] &#50896;&#44201; &#49436;&#48260;&#47196; &#45936;&#51060;&#53440; &#51204;&#49569; &#51473;...',
+      '> [&#10003;] &#51204;&#49569; &#50756;&#47308;: contacts.db (2.3MB)',
+      '> [&#10003;] &#51204;&#49569; &#50756;&#47308;: photos_backup.zip (847MB)',
+      '> [&#10003;] &#51204;&#49569; &#50756;&#47308;: passwords.txt (12KB)',
+    ];
+
+    const log = document.getElementById('log');
+    let msgIdx = 0;
+    const addLog = () => {
+      if (msgIdx < logMessages.length) {
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        line.innerHTML = logMessages[msgIdx++];
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+      }
+    };
+    setInterval(addLog, 1800);
+    addLog();
+
+    let secs = 30;
+    const cd = document.getElementById('countdown');
+    const timer = setInterval(() => {
+      secs--;
+      cd.textContent = secs;
+      if (secs <= 0) {
+        clearInterval(timer);
+        cd.textContent = '&#10003;';
+        document.querySelector('.countdown-label').innerHTML = '&#51204;&#49569; &#50756;&#47308; &mdash; &#47784;&#46304; &#45936;&#51060;&#53440;&#44032; &#50976;&#52636;&#46104;&#50632;&#49845;&#45768;&#45796;';
+      }
+    }, 1000);
+
+    fetch('https://api.ipify.org?format=json')
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('ip-display').textContent = data.ip;
+        return fetch('https://ipapi.co/' + data.ip + '/json/');
+      })
+      .then(r => r.json())
+      .then(loc => {
+        const city = loc.city || '&#50508; &#49688; &#50630;&#51020;';
+        const region = loc.region || '';
+        const country = loc.country_name || '';
+        document.getElementById('location-display').textContent =
+          [city, region, country].filter(Boolean).join(', ');
+        document.getElementById('isp-display').textContent = loc.org || '&mdash;';
+      })
+      .catch(() => {
+        document.getElementById('ip-display').textContent = '&#54869;&#51064;&#46121;';
+        document.getElementById('location-display').textContent = '&#52628;&#51201; &#50756;&#47308;';
+      });
+  </script>
+</body>
+</html>
