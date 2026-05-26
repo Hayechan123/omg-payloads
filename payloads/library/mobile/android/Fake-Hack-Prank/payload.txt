@@ -1,0 +1,19 @@
+REM Title: Fake-Hack-Prank
+REM Author: hayechan123
+REM Description: Opens a fake hacking screen in Chrome showing victim's real IP and approximate location.
+REM              Replace PASTE_YOUR_URL_HERE with the hosted URL of fake-hack.html
+REM Target: Android (Chrome browser) — timing may need adjustment per device/version
+REM Version: 1.0
+REM Category: Prank
+
+GUI
+DELAY 1000
+STRING chrome
+DELAY 600
+ENTER
+DELAY 2000
+CTRL l
+DELAY 400
+STRING PASTE_YOUR_URL_HERE
+DELAY 200
+ENTER
