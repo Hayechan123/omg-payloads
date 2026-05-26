@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>웹 취약점 스캐너</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+  header { text-align: center; padding: 40px 0 30px; }
+  header h1 { font-size: 2rem; color: #00d4aa; margin-bottom: 8px; }
+  header p { color: #888; font-size: 0.95rem; }
+
+  .scan-box { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+
+  .url-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .url-row input {
+    flex: 1; min-width: 200px; padding: 12px 16px;
+    background: #0f1117; border: 1px solid #3a3d4a; border-radius: 8px;
+    color: #e0e0e0; font-size: 1rem; outline: none;
+  }
+  .url-row input:focus { border-color: #00d4aa; }
+  .url-row button {
+    padding: 12px 28px; background: #00d4aa; color: #0f1117;
+    border: none; border-radius: 8px; font-size: 1rem; font-weight: 700;
+    cursor: pointer; white-space: nowrap; transition: background 0.2s;
+  }
+  .url-row button:hover { background: #00b894; }
+  .url-row button:disabled { background: #444; color: #888; cursor: not-allowed; }
+
+  .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .check-item {
+    display: flex; align-items: center; gap: 10px;
+    background: #0f1117; border: 1px solid #2a2d3a; border-radius: 8px;
+    padding: 12px; cursor: pointer; transition: border-color 0.2s;
+  }
+  .check-item:hover { border-color: #00d4aa55; }
+  .check-item input[type=checkbox] { accent-color: #00d4aa; width: 16px; height: 16px; cursor: pointer; }
+  .check-item label { cursor: pointer; font-size: 0.9rem; user-select: none; }
+  .check-item .icon { font-size: 1.2rem; }
+
+  #progress { display: none; text-align: center; padding: 20px; color: #00d4aa; }
+  .spinner {
+    width: 40px; height: 40px; border: 3px solid #2a2d3a;
+    border-top-color: #00d4aa; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #results { display: none; }
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .result-header h2 { color: #00d4aa; font-size: 1.3rem; }
+  .scanned-url { color: #888; font-size: 0.85rem; word-break: break-all; }
+
+  .card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .card-header:hover { background: #1f2235; }
+  .card-title { font-weight: 600; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+  .card-body { padding: 0 20px 20px; display: none; }
+  .card-body.open { display: block; }
+  .chevron { transition: transform 0.2s; color: #888; }
+  .chevron.open { transform: rotate(180deg); }
+
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+  .badge-danger { background: #ff4d4d22; color: #ff6b6b; border: 1px solid #ff4d4d44; }
+  .badge-warn { background: #ffaa0022; color: #ffcc44; border: 1px solid #ffaa0044; }
+  .badge-ok { background: #00d4aa22; color: #00d4aa; border: 1px solid #00d4aa44; }
+  .badge-info { background: #4a9eff22; color: #4a9eff; border: 1px solid #4a9eff44; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 12px; }
+  th { text-align: left; padding: 8px 12px; color: #888; font-weight: 600; border-bottom: 1px solid #2a2d3a; }
+  td { padding: 8px 12px; border-bottom: 1px solid #1a1d2733; vertical-align: top; word-break: break-all; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1f2235; }
+
+  .tag-missing { color: #ff6b6b; }
+  .tag-ok { color: #00d4aa; }
+  .tag-warn { color: #ffcc44; }
+
+  .section-label { color: #888; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+  .info-item { background: #0f1117; border-radius: 8px; padding: 12px; }
+  .info-item .label { color: #888; font-size: 0.78rem; margin-bottom: 4px; }
+  .info-item .value { font-size: 0.95rem; font-weight: 600; word-break: break-all; }
+
+  .path-found { color: #ff6b6b; }
+  .path-warn { color: #ffcc44; }
+
+  #error-msg { display: none; background: #ff4d4d22; border: 1px solid #ff4d4d44; color: #ff6b6b; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+
+  .disclaimer { text-align: center; color: #555; font-size: 0.8rem; margin-top: 32px; padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🔍 웹 취약점 스캐너</h1>
+    <p>내 웹서버의 보안 취약점을 빠르게 분석합니다</p>
+  </header>
+
+  <div class="scan-box">
+    <div class="url-row">
+      <input type="text" id="url-input" placeholder="https://example.com" autocomplete="off" autocorrect="off" spellcheck="false" />
+      <button id="scan-btn" onclick="startScan()">스캔 시작</button>
+    </div>
+
+    <div class="checks" id="checks">
+      <div class="check-item" onclick="toggle(this)">
+        <span class="icon">🛡️</span>
+        <input type="checkbox" value="headers" checked />
+        <label>보안 헤더</label>
+      </div>
+      <div class="check-item" onclick="toggle(this)">
+        <span class="icon">📁</span>
+        <input type="checkbox" value="paths" checked />
+        <label>민감 경로 탐지</label>
+      </div>
+      <div class="check-item" onclick="toggle(this)">
+        <span class="icon">🔒</span>
+        <input type="checkbox" value="ssl" checked />
+        <label>SSL/인증서</label>
+      </div>
+      <div class="check-item" onclick="toggle(this)">
+        <span class="icon">🔄</span>
+        <input type="checkbox" value="redirect" checked />
+        <label>HTTPS 리다이렉트</label>
+      </div>
+      <div class="check-item" onclick="toggle(this)">
+        <span class="icon">🍪</span>
+        <input type="checkbox" value="cookies" checked />
+        <label>쿠키 보안</label>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-msg"></div>
+
+  <div id="progress">
+    <div class="spinner"></div>
+    <div id="progress-text">스캔 중...</div>
+  </div>
+
+  <div id="results">
+    <div class="result-header">
+      <h2>분석 결과</h2>
+      <span class="scanned-url" id="result-url"></span>
+    </div>
+    <div id="result-cards"></div>
+  </div>
+
+  <div class="disclaimer">⚠️ 본인 소유 또는 허가된 서버에만 사용하세요. 무단 스캔은 불법입니다.</div>
+</div>
+
+<script>
+function toggle(el) {
+  const cb = el.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  el.style.borderColor = cb.checked ? '#00d4aa88' : '';
+}
+
+function getChecks() {
+  return [...document.querySelectorAll('#checks input:checked')].map(i => i.value);
+}
+
+async function startScan() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) { showError('URL을 입력하세요'); return; }
+  const checks = getChecks();
+  if (!checks.length) { showError('하나 이상의 분석 항목을 선택하세요'); return; }
+
+  hideError();
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('scan-btn').disabled = true;
+
+  const msgs = ['서버에 연결 중...', '헤더 분석 중...', '경로 탐색 중...', 'SSL 확인 중...', '결과 정리 중...'];
+  let i = 0;
+  const interval = setInterval(() => {
+    document.getElementById('progress-text').textContent = msgs[i++ % msgs.length];
+  }, 1800);
+
+  try {
+    const res = await fetch('/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, checks })
+    });
+    const data = await res.json();
+    clearInterval(interval);
+    document.getElementById('progress').style.display = 'none';
+    document.getElementById('scan-btn').disabled = false;
+    if (data.error) { showError(data.error); return; }
+    renderResults(data);
+  } catch (e) {
+    clearInterval(interval);
+    document.getElementById('progress').style.display = 'none';
+    document.getElementById('scan-btn').disabled = false;
+    showError('서버 오류: ' + e.message);
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = '❌ ' + msg;
+  el.style.display = 'block';
+}
+function hideError() { document.getElementById('error-msg').style.display = 'none'; }
+
+function toggleCard(id) {
+  const body = document.getElementById('body-' + id);
+  const chev = document.getElementById('chev-' + id);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function renderResults(data) {
+  document.getElementById('result-url').textContent = data.url;
+  const container = document.getElementById('result-cards');
+  container.innerHTML = '';
+
+  data.results.forEach((r, idx) => {
+    const id = 'card' + idx;
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    let badge = '';
+    let bodyHtml = '';
+
+    if (r.error) {
+      badge = `<span class="badge badge-info">오류</span>`;
+      bodyHtml = `<p style="color:#888">${r.error}</p>`;
+    } else if (r.name === '보안 헤더 분석') {
+      const f = r.findings;
+      const missing = f.missing?.length || 0;
+      badge = missing > 0
+        ? `<span class="badge badge-danger">누락 ${missing}개</span>`
+        : `<span class="badge badge-ok">양호</span>`;
+      bodyHtml = renderHeaders(f);
+    } else if (r.name === '민감 파일/경로 노출') {
+      const found = r.findings.found?.length || 0;
+      badge = found > 0
+        ? `<span class="badge badge-danger">노출 ${found}개</span>`
+        : `<span class="badge badge-ok">안전</span>`;
+      bodyHtml = renderPaths(r.findings);
+    } else if (r.name === 'SSL/HTTPS 분석') {
+      const f = r.findings;
+      badge = f.error ? `<span class="badge badge-danger">오류</span>`
+        : f.expired ? `<span class="badge badge-danger">만료됨</span>`
+        : f.expiring_soon ? `<span class="badge badge-warn">만료 임박</span>`
+        : f.https === false ? `<span class="badge badge-danger">HTTP 전용</span>`
+        : `<span class="badge badge-ok">안전</span>`;
+      bodyHtml = renderSSL(f);
+    } else if (r.name === 'HTTP → HTTPS 리다이렉트') {
+      const f = r.findings;
+      badge = f.to_https ? `<span class="badge badge-ok">리다이렉트 됨</span>`
+        : `<span class="badge badge-warn">미설정</span>`;
+      bodyHtml = renderRedirect(f);
+    } else if (r.name === '쿠키 보안 설정') {
+      const issues = (r.findings || []).filter(c => c.issues?.length > 0).length;
+      badge = r.findings?.length === 0 ? `<span class="badge badge-info">쿠키 없음</span>`
+        : issues > 0 ? `<span class="badge badge-warn">문제 ${issues}개</span>`
+        : `<span class="badge badge-ok">양호</span>`;
+      bodyHtml = renderCookies(r.findings || []);
+    }
+
+    card.innerHTML = `
+      <div class="card-header" onclick="toggleCard('${id}')">
+        <div class="card-title">${r.name} ${badge}</div>
+        <span class="chevron" id="chev-${id}">▼</span>
+      </div>
+      <div class="card-body" id="body-${id}">${bodyHtml}</div>`;
+    container.appendChild(card);
+  });
+
+  document.getElementById('results').style.display = 'block';
+}
+
+function renderHeaders(f) {
+  let html = '';
+  if (f.leaky?.length) {
+    html += `<div class="section-label">⚠️ 서버 정보 노출</div>
+    <table><tr><th>헤더</th><th>값</th></tr>`;
+    f.leaky.forEach(h => { html += `<tr><td class="tag-warn">${h.header}</td><td>${h.value}</td></tr>`; });
+    html += '</table>';
+  }
+  if (f.missing?.length) {
+    html += `<div class="section-label">❌ 누락된 보안 헤더</div>
+    <table><tr><th>헤더</th><th>설명</th></tr>`;
+    f.missing.forEach(h => { html += `<tr><td class="tag-missing">${h.header}</td><td>${h.desc}</td></tr>`; });
+    html += '</table>';
+  }
+  if (f.present?.length) {
+    html += `<div class="section-label">✅ 설정된 보안 헤더</div>
+    <table><tr><th>헤더</th><th>값</th></tr>`;
+    f.present.forEach(h => { html += `<tr><td class="tag-ok">${h.header}</td><td>${h.value}</td></tr>`; });
+    html += '</table>';
+  }
+  return html;
+}
+
+function renderPaths(f) {
+  if (!f.found?.length) return `<p class="tag-ok">노출된 민감 경로 없음 (${f.total_checked}개 확인)</p>`;
+  let html = `<p style="color:#888;margin-bottom:8px">확인한 경로: ${f.total_checked}개</p>
+  <table><tr><th>경로</th><th>상태코드</th><th>위험도</th></tr>`;
+  f.found.forEach(p => {
+    const cls = p.risk === '높음' ? 'tag-missing' : 'tag-warn';
+    html += `<tr><td class="${cls}">${p.path}</td><td>${p.status}</td><td>${p.risk}</td></tr>`;
+  });
+  return html + '</table>';
+}
+
+function renderSSL(f) {
+  if (f.error) return `<p class="tag-missing">${f.error}</p>`;
+  if (f.https === false) return `<p class="tag-missing">HTTPS가 설정되지 않았습니다.</p>`;
+  const expClass = f.expired ? 'tag-missing' : f.expiring_soon ? 'tag-warn' : 'tag-ok';
+  return `<div class="info-grid">
+    <div class="info-item"><div class="label">TLS 버전</div><div class="value">${f.tls_version}</div></div>
+    <div class="info-item"><div class="label">암호화 방식</div><div class="value">${f.cipher}</div></div>
+    <div class="info-item"><div class="label">인증서 만료</div><div class="value ${expClass}">${f.cert_expiry} (${f.days_until_expiry}일)</div></div>
+    <div class="info-item"><div class="label">발급 기관</div><div class="value">${f.issuer?.O || f.issuer?.CN || '알 수 없음'}</div></div>
+  </div>`;
+}
+
+function renderRedirect(f) {
+  if (f.error) return `<p class="tag-warn">${f.error}</p>`;
+  if (f.to_https) return `<p class="tag-ok">✅ HTTP → HTTPS 리다이렉트 정상 작동 (${f.status})</p><p style="color:#888;font-size:0.85rem;margin-top:6px">→ ${f.location}</p>`;
+  if (f.redirects) return `<p class="tag-warn">⚠️ 리다이렉트되지만 HTTPS가 아님 (→ ${f.location})</p>`;
+  return `<p class="tag-missing">❌ HTTP가 그대로 응답됩니다 (리다이렉트 없음, 상태: ${f.status})</p>`;
+}
+
+function renderCookies(cookies) {
+  if (!cookies.length) return `<p style="color:#888">설정된 쿠키 없음</p>`;
+  let html = '<table><tr><th>쿠키명</th><th>Secure</th><th>HttpOnly</th><th>SameSite</th><th>문제</th></tr>';
+  cookies.forEach(c => {
+    const issues = c.issues?.join(', ') || '-';
+    const issueClass = c.issues?.length ? 'tag-warn' : 'tag-ok';
+    html += `<tr>
+      <td>${c.name}</td>
+      <td class="${c.secure ? 'tag-ok' : 'tag-missing'}">${c.secure ? '✓' : '✗'}</td>
+      <td class="${c.httponly ? 'tag-ok' : 'tag-missing'}">${c.httponly ? '✓' : '✗'}</td>
+      <td>${c.samesite}</td>
+      <td class="${issueClass}">${issues}</td>
+    </tr>`;
+  });
+  return html + '</table>';
+}
+
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startScan();
+});
+</script>
+</body>
+</html>
