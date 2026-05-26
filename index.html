@@ -59,9 +59,9 @@ tr:hover td{background:#1f2235}
 .grade{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;font-size:1.5rem;font-weight:900;margin-right:14px;flex-shrink:0}
 .obs-row{display:flex;align-items:center;margin-top:10px}
 .obs-info{flex:1}
-#err{display:none;background:#ff4d4d18;border:1px solid #ff4d4d44;color:#ff6b6b;border-radius:8px;padding:13px 16px;margin-bottom:14px}
+.note{background:#4a9eff15;border:1px solid #4a9eff33;color:#4a9eff;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:10px}
+.warn-box{background:#ffaa0015;border:1px solid #ffaa0033;color:#ffcc44;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:10px}
 .disc{text-align:center;color:#555;font-size:.78rem;margin-top:28px;padding-bottom:28px}
-.note{background:#4a9eff15;border:1px solid #4a9eff33;color:#4a9eff;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:12px}
 </style>
 </head>
 <body>
@@ -83,8 +83,6 @@ tr:hover td{background:#1f2235}
       <div class="ci" onclick="tog(this)"><span class="ico">📋</span><input type="checkbox" value="info" checked/><label>서버 정보</label></div>
     </div>
   </div>
-
-  <div id="err"></div>
 
   <div id="prog">
     <div class="spin"></div>
@@ -113,120 +111,75 @@ const SECURITY_HEADERS = {
   'cross-origin-opener-policy':['COOP','크로스오리진 격리'],
   'cross-origin-resource-policy':['CORP','리소스 공유 제한'],
 };
-const LEAK_HEADERS = ['server','x-powered-by','x-aspnet-version','x-aspnetmvc-version','x-generator','x-runtime','x-drupal-cache','x-varnish'];
+const LEAK_HEADERS=['server','x-powered-by','x-aspnet-version','x-aspnetmvc-version','x-generator','x-runtime','x-drupal-cache','x-varnish'];
 
 function tog(el){ const cb=el.querySelector('input'); cb.checked=!cb.checked; el.style.borderColor=cb.checked?'#00d4aa88':''; }
-function checks(){ return [...document.querySelectorAll('.ci input:checked')].map(i=>i.value); }
-
+function getChecks(){ return [...document.querySelectorAll('.ci input:checked')].map(i=>i.value); }
 function setMsg(m){ document.getElementById('pt').textContent=m; }
-function showErr(m){ const e=document.getElementById('err'); e.textContent='❌ '+m; e.style.display='block'; }
-function hideErr(){ document.getElementById('err').style.display='none'; }
 
-async function scan(){
-  const raw=document.getElementById('url').value.trim();
-  if(!raw){ showErr('URL을 입력하세요'); return; }
-  const sel=checks();
-  if(!sel.length){ showErr('분석 항목을 하나 이상 선택하세요'); return; }
-  hideErr();
-  document.getElementById('res').style.display='none';
-  document.getElementById('prog').style.display='block';
-  document.getElementById('btn').disabled=true;
-
-  const url=raw.startsWith('http')?raw:'https://'+raw;
-  const parsed=new URL(url);
-  const host=parsed.hostname;
-  document.getElementById('ru').textContent=url;
-
-  const results=[];
-
-  try {
-    if(sel.includes('headers')||sel.includes('info')){
-      setMsg('HTTP 헤더 가져오는 중...');
-      const r=await fetchHeaders(url);
-      if(sel.includes('headers')) results.push(buildHeaderCard(r));
-      if(sel.includes('info')) results.push(buildInfoCard(r,url));
-    }
-    if(sel.includes('ssl')){
-      setMsg('SSL 확인 중...');
-      results.push(buildSSLCard(url));
-    }
-    if(sel.includes('observatory')){
-      setMsg('보안 점수 분석 중 (최대 30초)...');
-      const r=await fetchObservatory(host);
-      results.push(buildObsCard(r));
-    }
-  } catch(e){ showErr('분석 중 오류: '+e.message); }
-
-  document.getElementById('cards').innerHTML='';
-  results.forEach(html=>{ const d=document.createElement('div'); d.innerHTML=html; document.getElementById('cards').appendChild(d.firstChild); });
-  document.querySelectorAll('.card').forEach((c,i)=>{ const b=c.querySelector('.cb'); const v=c.querySelector('.chv'); if(b&&v){ b.classList.add('on'); v.classList.add('on'); } });
-  document.getElementById('prog').style.display='none';
-  document.getElementById('res').style.display='block';
-  document.getElementById('btn').disabled=false;
+function isPrivateHost(url){
+  try{
+    const h=new URL(url).hostname;
+    return /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
+  }catch{ return false; }
 }
 
 async function fetchHeaders(url){
-  const api='https://api.hackertarget.com/httpheaders/?q='+encodeURIComponent(url);
-  const r=await fetch(api);
-  const text=await r.text();
-  if(text.startsWith('error')) throw new Error('HackerTarget API 오류: '+text);
-  const headers={};
-  text.split('\n').forEach(line=>{
-    const idx=line.indexOf(':');
-    if(idx>0){ const k=line.slice(0,idx).trim().toLowerCase(); const v=line.slice(idx+1).trim(); headers[k]=v; }
-  });
-  return {raw:text,headers};
+  try{
+    const r=await fetch('https://api.hackertarget.com/httpheaders/?q='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+    const text=await r.text();
+    if(!text.startsWith('error')&&text.includes(':')){
+      const headers={};
+      text.split('\n').forEach(line=>{ const i=line.indexOf(':'); if(i>0){ headers[line.slice(0,i).trim().toLowerCase()]=line.slice(i+1).trim(); }});
+      return {headers,source:'external'};
+    }
+  }catch{}
+  try{
+    const r=await fetch(url,{method:'HEAD',signal:AbortSignal.timeout(8000),mode:'cors'});
+    const headers={};
+    r.headers.forEach((v,k)=>{ headers[k.toLowerCase()]=v; });
+    return {headers,source:'direct'};
+  }catch{}
+  throw new Error(isPrivateHost(url)
+    ? '로친/내부 서버는 외부 API 접근 불가. 서버에 CORS 헤더 추가 후 재시도하거나 Flask 버전을 사용하세요.'
+    : '서버 연결 실패. URL을 확인하거나 서버가 실행 중인지 확인하세요.');
 }
 
-function buildHeaderCard({headers}){
+function buildHeaderCard(headers, source){
   const missing=[],present=[],leaky=[];
   for(const [k,[name,desc]] of Object.entries(SECURITY_HEADERS)){
     if(headers[k]) present.push({name,desc,val:headers[k]});
     else missing.push({name,desc});
   }
   for(const k of LEAK_HEADERS){ if(headers[k]) leaky.push({name:k,val:headers[k]}); }
-
   const badge=missing.length>0?`<span class="badge bd">누락 ${missing.length}개</span>`:`<span class="badge bo">양호</span>`;
-  let body='';
-  if(leaky.length){
-    body+=`<div class="sl">⚠️ 서버 정보 노출</div><table><tr><th>헤더</th><th>값</th></tr>`;
-    leaky.forEach(h=>{ body+=`<tr><td class="ylw">${h.name}</td><td>${h.val}</td></tr>`; });
-    body+='</table>';
-  }
-  if(missing.length){
-    body+=`<div class="sl">❌ 누락된 보안 헤더</div><table><tr><th>헤더</th><th>설명</th></tr>`;
-    missing.forEach(h=>{ body+=`<tr><td class="red">${h.name}</td><td class="dim">${h.desc}</td></tr>`; });
-    body+='</table>';
-  }
-  if(present.length){
-    body+=`<div class="sl">✅ 설정된 보안 헤더</div><table><tr><th>헤더</th><th>값</th></tr>`;
-    present.forEach(h=>{ body+=`<tr><td class="grn">${h.name}</td><td>${h.val}</td></tr>`; });
-    body+='</table>';
-  }
-  return card('🛡️ 보안 헤더 분석',badge,body,'h');
+  let body=source==='direct'?`<div class="note">💡 직접 연결로 분석됨 (CORS 허용 서버)</div>`:'';
+  if(leaky.length){ body+=`<div class="sl">⚠️ 서버 정보 노출</div><table><tr><th>헤더</th><th>값</th></tr>`; leaky.forEach(h=>{body+=`<tr><td class="ylw">${h.name}</td><td>${h.val}</td></tr>`;}); body+='</table>'; }
+  if(missing.length){ body+=`<div class="sl">❌ 누락된 보안 헤더</div><table><tr><th>헤더</th><th>설명</th></tr>`; missing.forEach(h=>{body+=`<tr><td class="red">${h.name}</td><td class="dim">${h.desc}</td></tr>`;}); body+='</table>'; }
+  if(present.length){ body+=`<div class="sl">✅ 설정된 보안 헤더</div><table><tr><th>헤더</th><th>값</th></tr>`; present.forEach(h=>{body+=`<tr><td class="grn">${h.name}</td><td>${h.val}</td></tr>`;}); body+='</table>'; }
+  return card('🛡️ 보안 헤더 분석',badge,body);
 }
 
-function buildInfoCard({headers,raw},url){
-  const parsed=new URL(url);
+function buildInfoCard(headers, url){
+  const p=new URL(url);
   let body=`<div class="ig">
-    <div class="ii"><div class="lbl">프로토콜</div><div class="val">${parsed.protocol.replace(':','').toUpperCase()}</div></div>
-    <div class="ii"><div class="lbl">호스트</div><div class="val">${parsed.hostname}</div></div>`;
+    <div class="ii"><div class="lbl">프로토콜</div><div class="val">${p.protocol.replace(':','').toUpperCase()}</div></div>
+    <div class="ii"><div class="lbl">호스트</div><div class="val">${p.hostname}</div></div>`;
   if(headers['server']) body+=`<div class="ii"><div class="lbl">서버 소프트웨어</div><div class="val ylw">${headers['server']}</div></div>`;
   if(headers['x-powered-by']) body+=`<div class="ii"><div class="lbl">기술 스택</div><div class="val ylw">${headers['x-powered-by']}</div></div>`;
   if(headers['content-type']) body+=`<div class="ii"><div class="lbl">Content-Type</div><div class="val">${headers['content-type']}</div></div>`;
   body+='</div>';
-  const badge=`<span class="badge bi">정보</span>`;
-  return card('📋 서버 정보',badge,body,'i');
+  return card('📋 서버 정보',`<span class="badge bi">정보</span>`,body);
 }
 
 function buildSSLCard(url){
   const isHttps=url.startsWith('https://');
   const badge=isHttps?`<span class="badge bo">HTTPS 사용</span>`:`<span class="badge bd">HTTP 전용</span>`;
+  const host=new URL(url).hostname;
   const body=isHttps
-    ?`<p class="grn" style="margin-bottom:10px">✅ HTTPS를 사용하고 있습니다.</p>
-      <div class="note">💡 SSL Labs에서 심층 분석: <a href="https://www.ssllabs.com/ssltest/analyze.html?d=${encodeURIComponent(new URL(url).hostname)}" target="_blank" style="color:#4a9eff">여기 클릭</a></div>`
+    ?`<p class="grn" style="margin-bottom:10px">✅ HTTPS를 사용하고 있습니다.</p><div class="note">💡 SSL 심층 분석: <a href="https://www.ssllabs.com/ssltest/analyze.html?d=${encodeURIComponent(host)}" target="_blank" style="color:#4a9eff">SSL Labs에서 확인</a></div>`
     :`<p class="red">❌ HTTP를 사용 중입니다. HTTPS로 전환하세요.</p>`;
-  return card('🔒 SSL/HTTPS',badge,body,'s');
+  return card('🔒 SSL/HTTPS',badge,body);
 }
 
 async function fetchObservatory(host){
@@ -234,48 +187,96 @@ async function fetchObservatory(host){
   await fetch(base,{method:'POST',body:'rescan=false'}).catch(()=>{});
   for(let i=0;i<12;i++){
     await new Promise(r=>setTimeout(r,3000));
-    const r=await fetch(base);
-    const d=await r.json();
-    if(d.state==='FINISHED'||d.grade) return d;
+    try{
+      const r=await fetch(base);
+      const d=await r.json();
+      if(d.state==='FINISHED'||d.grade||d.error) return d;
+    }catch{}
   }
-  throw new Error('Observatory 시간 초과');
+  throw new Error('시간 초과 (로컈 서버는 Observatory 분석 불가)');
 }
 
 function buildObsCard(d){
-  if(d.error) return card('🏅 취약점 점수',`<span class="badge bw">오류</span>`,`<p class="dim">${d.text||JSON.stringify(d)}</p>`,'o');
-  const grade=d.grade||'?';
-  const score=d.score??'-';
-  const gColor=grade.startsWith('A')?'#00d4aa':grade.startsWith('B')?'#4a9eff':grade.startsWith('C')?'#ffcc44':'#ff6b6b';
-  const badge=`<span class="badge" style="background:${gColor}22;color:${gColor};border:1px solid ${gColor}44">등급 ${grade}</span>`;
-  let body=`<div class="obs-row">
-    <div class="grade" style="background:${gColor}22;color:${gColor};border:2px solid ${gColor}44">${grade}</div>
-    <div class="obs-info">
-      <div style="font-size:1.1rem;font-weight:700">${score} / 100점</div>
-      <div class="dim" style="font-size:.82rem;margin-top:3px">Mozilla Observatory 기준</div>
-    </div>
-  </div>`;
+  if(d.error) return card('🏅 취약점 점수',`<span class="badge bw">불가</span>`,`<p class="dim">${d.text||d.error}</p>`);
+  const grade=d.grade||'?', score=d.score??'-';
+  const gc=grade.startsWith('A')?'#00d4aa':grade.startsWith('B')?'#4a9eff':grade.startsWith('C')?'#ffcc44':'#ff6b6b';
+  const badge=`<span class="badge" style="background:${gc}22;color:${gc};border:1px solid ${gc}44">등급 ${grade}</span>`;
+  let body=`<div class="obs-row"><div class="grade" style="background:${gc}22;color:${gc};border:2px solid ${gc}44">${grade}</div><div class="obs-info"><div style="font-size:1.1rem;font-weight:700">${score}/100점</div><div class="dim" style="font-size:.82rem;margin-top:3px">Mozilla Observatory 기준</div></div></div>`;
   if(d.tests){
     body+=`<div class="sl">세부 항목</div><table><tr><th>항목</th><th>결과</th><th>점수</th></tr>`;
     Object.values(d.tests).sort((a,b)=>(a.score_modifier||0)-(b.score_modifier||0)).forEach(t=>{
-      const cls=t.pass?'grn':'red';
-      const icon=t.pass?'✓':'✗';
+      const cls=t.pass?'grn':'red', icon=t.pass?'✓':'✗';
       body+=`<tr><td>${t.name||'-'}</td><td class="${cls}">${icon} ${t.result||''}</td><td class="${cls}">${t.score_modifier>=0?'+':''}${t.score_modifier??0}</td></tr>`;
     });
     body+='</table>';
   }
-  return card('🏅 취약점 점수',badge,body,'o');
+  return card('🏅 취약점 점수',badge,body);
+}
+
+function buildErrCard(title, msg){
+  return card(title,`<span class="badge bw">분석 불가</span>`,`<div class="warn-box">⚠️ ${msg}</div>`);
+}
+
+async function scan(){
+  const raw=document.getElementById('url').value.trim();
+  if(!raw){ alert('URL을 입력하세요'); return; }
+  const sel=getChecks();
+  if(!sel.length){ alert('분석 항목을 하나 이상 선택하세요'); return; }
+
+  document.getElementById('res').style.display='none';
+  document.getElementById('prog').style.display='block';
+  document.getElementById('btn').disabled=true;
+  cardIdx=0;
+
+  const url=raw.startsWith('http')?raw:'https://'+raw;
+  const host=new URL(url).hostname;
+  document.getElementById('ru').textContent=url;
+
+  const results=[];
+  const isPrivate=isPrivateHost(url);
+
+  if(sel.includes('headers')||sel.includes('info')){
+    setMsg(isPrivate?'직접 연결 시도 중 (로컈 서버)...':'HTTP 헤더 가져오는 중...');
+    try{
+      const {headers,source}=await fetchHeaders(url);
+      if(sel.includes('headers')) results.push(buildHeaderCard(headers,source));
+      if(sel.includes('info')) results.push(buildInfoCard(headers,url));
+    }catch(e){
+      if(sel.includes('headers')) results.push(buildErrCard('🛡️ 보안 헤더 분석', e.message));
+      if(sel.includes('info')) results.push(buildErrCard('📋 서버 정보', e.message));
+    }
+  }
+
+  if(sel.includes('ssl')) results.push(buildSSLCard(url));
+
+  if(sel.includes('observatory')){
+    if(isPrivate){
+      results.push(buildErrCard('🏅 취약점 점수','로컈/내부 서버는 Mozilla Observatory 분석 불가 (공개 서버만 지원)'));
+    } else {
+      setMsg('보안 점수 분석 중 (최대 30초)...');
+      try{
+        const d=await fetchObservatory(host);
+        results.push(buildObsCard(d));
+      }catch(e){
+        results.push(buildErrCard('🏅 취약점 점수',e.message));
+      }
+    }
+  }
+
+  const container=document.getElementById('cards');
+  container.innerHTML='';
+  results.forEach(html=>{ const d=document.createElement('div'); d.innerHTML=html; container.appendChild(d.firstChild); });
+  container.querySelectorAll('.cb').forEach(b=>b.classList.add('on'));
+  container.querySelectorAll('.chv').forEach(v=>v.classList.add('on'));
+  document.getElementById('prog').style.display='none';
+  document.getElementById('res').style.display='block';
+  document.getElementById('btn').disabled=false;
 }
 
 let cardIdx=0;
-function card(title,badge,body,k){
+function card(title,badge,body){
   const id='c'+(cardIdx++);
-  return `<div class="card">
-    <div class="ch" onclick="tcb('${id}')">
-      <div class="ct">${title} ${badge}</div>
-      <span class="chv" id="cv${id}">▼</span>
-    </div>
-    <div class="cb" id="${id}">${body}</div>
-  </div>`;
+  return `<div class="card"><div class="ch" onclick="tcb('${id}')"><div class="ct">${title} ${badge}</div><span class="chv" id="cv${id}">▼</span></div><div class="cb" id="${id}">${body}</div></div>`;
 }
 function tcb(id){ document.getElementById(id).classList.toggle('on'); document.getElementById('cv'+id).classList.toggle('on'); }
 
