@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>WARNING - SYSTEM COMPROMISED</title>
+  <title>WARNING</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -12,7 +12,6 @@
       font-family: 'Courier New', Courier, monospace;
       min-height: 100vh;
       padding: 15px;
-      overflow: hidden;
     }
     .skull {
       font-size: 64px;
@@ -49,7 +48,7 @@
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #aa0000, #ff0000);
-      animation: fill 30s linear forwards;
+      animation: fill 10s linear forwards;
     }
     @keyframes fill { from { width: 0%; } to { width: 100%; } }
     .info-box {
@@ -77,7 +76,7 @@
     .row:last-child { margin-bottom: 0; }
     #countdown {
       text-align: center;
-      font-size: 52px;
+      font-size: 72px;
       font-weight: bold;
       color: #ff0000;
       text-shadow: 0 0 20px #ff0000;
@@ -86,7 +85,7 @@
     }
     @keyframes pulse {
       0%, 100% { text-shadow: 0 0 10px #ff0000; }
-      50% { text-shadow: 0 0 30px #ff0000, 0 0 50px #ff0000; }
+      50% { text-shadow: 0 0 40px #ff0000, 0 0 60px #ff0000; }
     }
     .countdown-label {
       text-align: center;
@@ -99,114 +98,96 @@
       font-size: 11px;
       color: #880000;
       margin-top: 10px;
-      height: 130px;
+      height: 150px;
       overflow: hidden;
       border-top: 1px solid #330000;
       padding-top: 8px;
     }
-    .log-line {
-      margin: 3px 0;
-      opacity: 0;
-      animation: fadeIn 0.3s forwards;
-    }
-    @keyframes fadeIn { to { opacity: 1; } }
-    .done-msg {
-      text-align: center;
-      font-size: 20px;
-      color: #ff0000;
-      margin: 20px 0;
-      animation: blink 0.8s infinite;
-    }
+    .log-line { margin: 4px 0; }
   </style>
 </head>
 <body>
-  <div class="skull">☠️</div>
+  <div class="skull">💀</div>
   <h1>해킹 당했습니다</h1>
   <p class="subtitle">SYSTEM COMPROMISED — DATA BREACH IN PROGRESS</p>
   <div class="progress-bar"><div class="progress-fill"></div></div>
 
   <div class="info-box">
     <div class="row">
-      <div class="label">&#9654; 탐지된 IP 주소</div>
+      <div class="label">▶ 탐지된 IP 주소</div>
       <div class="value" id="ip-display">분석 중...</div>
     </div>
     <div class="row">
-      <div class="label">&#9654; 위치 추적 완료</div>
+      <div class="label">▶ 위치 추적 완료</div>
       <div class="value" id="location-display">위치 계산 중...</div>
     </div>
     <div class="row">
-      <div class="label">&#9654; 통신사 / ISP</div>
+      <div class="label">▶ 통신사 / ISP</div>
       <div class="value" id="isp-display">—</div>
     </div>
   </div>
 
-  <div id="countdown">30</div>
-  <div class="countdown-label">초 후 개인정보 전송 완료 🚨</div>
+  <div id="countdown">10</div>
+  <div class="countdown-label" id="cd-label">초 후 개인정보 전송 완료 🚨</div>
 
   <div class="log" id="log"></div>
 
   <script>
-    const logMessages = [
+    var msgs = [
       '> [+] 시스템 침투 성공...',
       '> [+] 연락처 목록 수집 중...',
-      '> [+] 사진 및 동영상 업로드 시작...',
-      '> [+] 저장된 비밀번호 해독 중...',
+      '> [+] 사진 업로드 시작...',
+      '> [+] 비밀번호 해독 중...',
       '> [+] GPS 위치 추적 활성화...',
       '> [+] 카메라 접근 권한 획득...',
       '> [+] 마이크 도청 시작...',
       '> [+] 금융 앱 정보 스캔 중...',
       '> [+] 백도어 설치 완료...',
-      '> [+] 원격 서버로 데이터 전송 중...',
-      '> [✓] 전송 완료: contacts.db (2.3MB)',
-      '> [✓] 전송 완료: photos_backup.zip (847MB)',
-      '> [✓] 전송 완료: passwords.txt (12KB)',
+      '> [✓] contacts.db 전송 완료 (2.3MB)',
+      '> [✓] photos_backup.zip 전송 완료 (847MB)',
+      '> [✓] passwords.txt 전송 완료 (12KB)',
     ];
-
-    const log = document.getElementById('log');
-    let msgIdx = 0;
-    const addLog = () => {
-      if (msgIdx < logMessages.length) {
-        const line = document.createElement('div');
-        line.className = 'log-line';
-        line.textContent = logMessages[msgIdx++];
-        log.appendChild(line);
+    var log = document.getElementById('log');
+    var idx = 0;
+    function addLog() {
+      if (idx < msgs.length) {
+        var d = document.createElement('div');
+        d.className = 'log-line';
+        d.textContent = msgs[idx++];
+        log.appendChild(d);
         log.scrollTop = log.scrollHeight;
       }
-    };
-    setInterval(addLog, 1800);
+    }
+    setInterval(addLog, 700);
     addLog();
 
-    let secs = 30;
-    const cd = document.getElementById('countdown');
-    const timer = setInterval(() => {
+    var secs = 10;
+    var cd = document.getElementById('countdown');
+    var timer = setInterval(function() {
       secs--;
       cd.textContent = secs;
       if (secs <= 0) {
         clearInterval(timer);
         cd.textContent = '✓';
-        document.querySelector('.countdown-label').textContent = '전송 완료 — 모든 데이터가 유출되었습니다';
+        document.getElementById('cd-label').textContent = '전송 완료 — 모든 데이터가 유출되었습니다';
       }
     }, 1000);
 
-    fetch('https://api.ipify.org?format=json')
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById('ip-display').textContent = data.ip;
-        return fetch('https://ipapi.co/' + data.ip + '/json/');
-      })
-      .then(r => r.json())
-      .then(loc => {
-        const city = loc.city || '알 수 없음';
-        const region = loc.region || '';
-        const country = loc.country_name || '';
-        document.getElementById('location-display').textContent =
-          [city, region, country].filter(Boolean).join(', ');
-        document.getElementById('isp-display').textContent = loc.org || '—';
-      })
-      .catch(() => {
-        document.getElementById('ip-display').textContent = '확인됨';
-        document.getElementById('location-display').textContent = '추적 완료';
-      });
+    // JSONP 방식으로 IP 가져오기 (CSP 우회)
+    function handleLocation(data) {
+      var parts = [data.city, data.region, data.country_name].filter(Boolean);
+      document.getElementById('location-display').textContent = parts.join(', ') || '위치 확인됨';
+      document.getElementById('isp-display').textContent = data.org || '—';
+    }
+    function handleIP(data) {
+      document.getElementById('ip-display').textContent = data.ip;
+      var s = document.createElement('script');
+      s.src = 'https://ipapi.co/' + data.ip + '/jsonp/?callback=handleLocation';
+      document.head.appendChild(s);
+    }
+    var s = document.createElement('script');
+    s.src = 'https://api.ipify.org?format=jsonp&callback=handleIP';
+    document.head.appendChild(s);
   </script>
 </body>
 </html>
