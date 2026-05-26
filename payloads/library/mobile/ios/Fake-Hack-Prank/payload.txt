@@ -17,6 +17,6 @@ ENTER
 DELAY 800
 GUI l
 DELAY 300
-STRING PASTE_YOUR_URL_HERE
+STRING https://htmlpreview.github.io/?https://raw.githubusercontent.com/Hayechan123/omg-payloads/gh-pages/fake-hack.html
 DELAY 200
 ENTER
