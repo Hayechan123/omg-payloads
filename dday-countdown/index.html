@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>D-Day 카운트다운</title>
+<style>
+  :root {
+    --bg: #0f1220;
+    --bg-soft: #171a2b;
+    --card: #1c2036;
+    --card-hover: #222746;
+    --line: #2b3152;
+    --text: #eef1ff;
+    --muted: #9aa2c8;
+    --accent: #6c7bff;
+    --accent-2: #ff6b9d;
+    --past: #ff7a7a;
+    --today: #ffcf5c;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+      "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: radial-gradient(1200px 700px at 80% -10%, #23284a 0%, transparent 60%),
+                radial-gradient(900px 600px at -10% 20%, #2a1f3f 0%, transparent 55%),
+                var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    font-size: 2rem; margin: 0 0 6px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header p { color: var(--muted); margin: 0; font-size: .95rem; }
+
+  /* 입력 폼 */
+  .form {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 26px;
+    box-shadow: var(--shadow);
+  }
+  .form .field { flex: 1 1 180px; display: flex; flex-direction: column; gap: 6px; }
+  .form label { font-size: .78rem; color: var(--muted); padding-left: 2px; }
+  .form input {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--text);
+    padding: 11px 12px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form input:focus { border-color: var(--accent); }
+  .form input::-webkit-calendar-picker-indicator { filter: invert(.7); cursor: pointer; }
+  .form .add-btn {
+    flex: 0 0 auto;
+    align-self: flex-end;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    height: 44px;
+    transition: transform .1s, opacity .15s;
+  }
+  .form .add-btn:hover { opacity: .92; }
+  .form .add-btn:active { transform: scale(.97); }
+
+  /* 카드 목록 */
+  .cards { display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    transition: background .15s, transform .1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+  }
+  .card.past::before { background: var(--past); }
+  .card.today::before { background: var(--today); }
+
+  .card-top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin-bottom: 4px;
+  }
+  .card-title { font-size: 1.2rem; font-weight: 700; margin: 0; word-break: break-all; }
+  .card-date { color: var(--muted); font-size: .82rem; margin: 0; }
+
+  .dday-badge {
+    font-size: 1.9rem; font-weight: 800; white-space: nowrap;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .card.past .dday-badge {
+    background: none; -webkit-text-fill-color: var(--past); color: var(--past);
+  }
+  .card.today .dday-badge {
+    background: none; -webkit-text-fill-color: var(--today); color: var(--today);
+  }
+
+  /* 초/분/시간 그리드 */
+  .units {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .unit {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .unit .num {
+    font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    letter-spacing: .5px;
+  }
+  .unit .lbl { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+
+  .card-actions {
+    position: absolute; top: 14px; right: 16px; display: flex; gap: 8px;
+  }
+  .icon-btn {
+    background: transparent; border: none; color: var(--muted);
+    cursor: pointer; font-size: 1.05rem; padding: 4px; line-height: 1;
+    border-radius: 6px; transition: color .15s, background .15s;
+  }
+  .icon-btn:hover { color: var(--past); background: rgba(255,255,255,.05); }
+
+  .empty {
+    text-align: center; color: var(--muted); padding: 48px 20px;
+    border: 1px dashed var(--line); border-radius: 16px;
+  }
+  .empty .big { font-size: 2.5rem; margin-bottom: 8px; }
+
+  @media (max-width: 560px) {
+    .units { grid-template-columns: repeat(2, 1fr); }
+    .dday-badge { font-size: 1.5rem; }
+    .card-top { flex-direction: column; }
+    .card-actions { position: static; margin-top: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⏳ D-Day 카운트다운</h1>
+    <p>기억하고 싶은 날을 저장하고, 남은 시간을 초·분·시간으로 한눈에 확인하세요.</p>
+  </header>
+
+  <form class="form" id="ddayForm">
+    <div class="field">
+      <label for="title">이름</label>
+      <input type="text" id="title" placeholder="예: 수능, 여행, 생일" maxlength="40" required />
+    </div>
+    <div class="field">
+      <label for="date">날짜</label>
+      <input type="date" id="date" required />
+    </div>
+    <div class="field" style="flex:0 1 140px;">
+      <label for="time">시각 (선택)</label>
+      <input type="time" id="time" />
+    </div>
+    <button type="submit" class="add-btn">추가</button>
+  </form>
+
+  <div class="cards" id="cards"></div>
+</div>
+
+<script>
+  const STORAGE_KEY = "dday-items-v1";
+  const form = document.getElementById("ddayForm");
+  const cardsEl = document.getElementById("cards");
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+  function save(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  let items = load();
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = document.getElementById("title").value.trim();
+    const date = document.getElementById("date").value;
+    const time = document.getElementById("time").value; // "" 가능
+    if (!title || !date) return;
+
+    items.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      title,
+      date,
+      time: time || "00:00",
+    });
+    save(items);
+    form.reset();
+    render();
+  });
+
+  function deleteItem(id) {
+    items = items.filter((it) => it.id !== id);
+    save(items);
+    render();
+  }
+
+  // 목표 시각까지의 남은/지난 시간 계산
+  function diffFrom(target) {
+    const now = new Date();
+    const ms = target.getTime() - now.getTime();
+    const absSec = Math.floor(Math.abs(ms) / 1000);
+    return {
+      ms,
+      future: ms >= 0,
+      days: Math.floor(absSec / 86400),
+      hours: Math.floor(absSec / 3600),        // 전체 시간
+      minutes: Math.floor(absSec / 60),        // 전체 분
+      seconds: absSec,                          // 전체 초
+      compHours: Math.floor((absSec % 86400) / 3600),
+      compMinutes: Math.floor((absSec % 3600) / 60),
+      compSeconds: absSec % 60,
+    };
+  }
+
+  // 날짜 기준 D-Day 라벨 (자정 기준)
+  function ddayLabel(dateStr) {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const t = new Date(dateStr + "T00:00:00"); t.setHours(0, 0, 0, 0);
+    const days = Math.round((t - today) / 86400000);
+    if (days === 0) return { text: "D-DAY", cls: "today" };
+    if (days > 0) return { text: "D-" + days, cls: "" };
+    return { text: "D+" + Math.abs(days), cls: "past" };
+  }
+
+  function fmt(n) { return n.toLocaleString("ko-KR"); }
+
+  function render() {
+    if (items.length === 0) {
+      cardsEl.innerHTML =
+        '<div class="empty"><div class="big">🗓️</div>' +
+        "아직 저장된 디데이가 없어요.<br>위에서 첫 번째 디데이를 추가해 보세요!</div>";
+      return;
+    }
+
+    // 목표 시각 기준으로 정렬 (가까운 미래 → 과거)
+    const sorted = [...items].sort((a, b) => {
+      const ta = new Date(a.date + "T" + a.time).getTime();
+      const tb = new Date(b.date + "T" + b.time).getTime();
+      return ta - tb;
+    });
+
+    cardsEl.innerHTML = sorted.map((it) => {
+      const target = new Date(it.date + "T" + it.time + ":00");
+      const d = diffFrom(target);
+      const label = ddayLabel(it.date);
+      const dateText =
+        it.date.replace(/-/g, ".") +
+        (it.time && it.time !== "00:00" ? " " + it.time : "");
+      const prefix = d.future ? "남은" : "지난";
+
+      return (
+        '<div class="card ' + label.cls + '">' +
+          '<div class="card-actions">' +
+            '<button class="icon-btn" title="삭제" data-del="' + it.id + '">✕</button>' +
+          "</div>" +
+          '<div class="card-top">' +
+            "<div>" +
+              '<p class="card-title">' + escapeHtml(it.title) + "</p>" +
+              '<p class="card-date">🎯 ' + dateText + "</p>" +
+            "</div>" +
+            '<div class="dday-badge">' + label.text + "</div>" +
+          "</div>" +
+          '<div class="units">' +
+            unitBox(prefix + " 일", d.days) +
+            unitBox(prefix + " 시간", d.hours) +
+            unitBox(prefix + " 분", d.minutes) +
+            unitBox(prefix + " 초", d.seconds) +
+          "</div>" +
+        "</div>"
+      );
+    }).join("");
+
+    cardsEl.querySelectorAll("[data-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (confirm("이 디데이를 삭제할까요?")) deleteItem(btn.dataset.del);
+      });
+    });
+  }
+
+  function unitBox(label, value) {
+    return (
+      '<div class="unit">' +
+        '<div class="num">' + fmt(value) + "</div>" +
+        '<div class="lbl">' + label + "</div>" +
+      "</div>"
+    );
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  render();
+  // 1초마다 갱신 → 초 단위까지 실시간
+  setInterval(render, 1000);
+</script>
+</body>
+</html>
