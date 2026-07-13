@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>웹 취약점 스캐너</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#0f1117;color:#e0e0e0;min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:20px}
+header{text-align:center;padding:40px 0 28px}
+header h1{font-size:1.9rem;color:#00d4aa;margin-bottom:8px}
+header p{color:#888;font-size:.9rem}
+.box{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:22px;margin-bottom:20px}
+.row{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.row input{flex:1;min-width:180px;padding:12px 16px;background:#0f1117;border:1px solid #3a3d4a;border-radius:8px;color:#e0e0e0;font-size:1rem;outline:none}
+.row input:focus{border-color:#00d4aa}
+.row button{padding:12px 26px;background:#00d4aa;color:#0f1117;border:none;border-radius:8px;font-weight:700;font-size:1rem;cursor:pointer;white-space:nowrap}
+.row button:hover{background:#00b894}
+.row button:disabled{background:#333;color:#666;cursor:not-allowed}
+.checks{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.ci{display:flex;align-items:center;gap:9px;background:#0f1117;border:1px solid #2a2d3a;border-radius:8px;padding:11px;cursor:pointer}
+.ci:hover{border-color:#00d4aa55}
+.ci input{accent-color:#00d4aa;width:15px;height:15px;cursor:pointer;flex-shrink:0}
+.ci label{cursor:pointer;font-size:.88rem;user-select:none}
+.ci .ico{font-size:1.1rem}
+#prog{display:none;text-align:center;padding:24px}
+.spin{width:38px;height:38px;border:3px solid #2a2d3a;border-top-color:#00d4aa;border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#prog p{color:#00d4aa;font-size:.95rem}
+#res{display:none}
+.rh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.rh h2{color:#00d4aa;font-size:1.2rem}
+.ru{color:#666;font-size:.8rem;word-break:break-all}
+.card{background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;margin-bottom:14px;overflow:hidden}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;cursor:pointer}
+.ch:hover{background:#1f2235}
+.ct{font-weight:600;font-size:.97rem;display:flex;align-items:center;gap:8px}
+.cb{padding:0 18px 18px;display:none}
+.cb.on{display:block}
+.chv{color:#888;transition:transform .2s;font-size:.85rem}
+.chv.on{transform:rotate(180deg)}
+.badge{padding:3px 9px;border-radius:20px;font-size:.72rem;font-weight:700}
+.bd{background:#ff4d4d22;color:#ff6b6b;border:1px solid #ff4d4d44}
+.bw{background:#ffaa0022;color:#ffcc44;border:1px solid #ffaa0044}
+.bo{background:#00d4aa22;color:#00d4aa;border:1px solid #00d4aa44}
+.bi{background:#4a9eff22;color:#4a9eff;border:1px solid #4a9eff44}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:10px}
+th{text-align:left;padding:7px 11px;color:#888;font-weight:600;border-bottom:1px solid #2a2d3a;white-space:nowrap}
+td{padding:7px 11px;border-bottom:1px solid #1a1d2733;vertical-align:top;word-break:break-all}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#1f2235}
+.red{color:#ff6b6b}.grn{color:#00d4aa}.ylw{color:#ffcc44}.dim{color:#888}
+.sl{color:#888;font-size:.76rem;text-transform:uppercase;letter-spacing:1px;margin:14px 0 7px}
+.ig{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px;margin-top:10px}
+.ii{background:#0f1117;border-radius:8px;padding:11px}
+.ii .lbl{color:#888;font-size:.75rem;margin-bottom:3px}
+.ii .val{font-size:.92rem;font-weight:600;word-break:break-all}
+.grade{display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:50%;font-size:1.5rem;font-weight:900;margin-right:14px;flex-shrink:0}
+.obs-row{display:flex;align-items:center;margin-top:10px}
+.obs-info{flex:1}
+.note{background:#4a9eff15;border:1px solid #4a9eff33;color:#4a9eff;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:10px}
+.warn-box{background:#ffaa0015;border:1px solid #ffaa0033;color:#ffcc44;border-radius:8px;padding:10px 14px;font-size:.82rem;margin-bottom:10px}
+.disc{text-align:center;color:#555;font-size:.78rem;margin-top:28px;padding-bottom:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔍 웹 취약점 스캐너</h1>
+    <p>URL 하나로 내 웹서버 보안 상태를 빠르게 확인하세요</p>
+  </header>
+
+  <div class="box">
+    <div class="row">
+      <input type="text" id="url" placeholder="https://example.com" autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button id="btn" onclick="scan()">스캔 시작</button>
+    </div>
+    <div class="checks">
+      <div class="ci" onclick="tog(this)"><span class="ico">🛡️</span><input type="checkbox" value="headers" checked/><label>보안 헤더</label></div>
+      <div class="ci" onclick="tog(this)"><span class="ico">🏅</span><input type="checkbox" value="observatory" checked/><label>취약점 점수</label></div>
+      <div class="ci" onclick="tog(this)"><span class="ico">🔒</span><input type="checkbox" value="ssl" checked/><label>SSL 확인</label></div>
+      <div class="ci" onclick="tog(this)"><span class="ico">📋</span><input type="checkbox" value="info" checked/><label>서버 정보</label></div>
+    </div>
+  </div>
+
+  <div id="prog">
+    <div class="spin"></div>
+    <p id="pt">분석 중...</p>
+  </div>
+
+  <div id="res">
+    <div class="rh">
+      <h2>분석 결과</h2>
+      <span class="ru" id="ru"></span>
+    </div>
+    <div id="cards"></div>
+  </div>
+
+  <div class="disc">⚠️ 본인 소유 또는 허가된 서버에만 사용하세요. 무단 스캔은 불법입니다.</div>
+</div>
+
+<script>
+const SECURITY_HEADERS = {
+  'strict-transport-security':['HSTS','HTTPS 강제 접속'],
+  'content-security-policy':['CSP','XSS 공격 방지'],
+  'x-frame-options':['X-Frame-Options','클릭재킹 방지'],
+  'x-content-type-options':['X-Content-Type-Options','MIME 스니핑 방지'],
+  'referrer-policy':['Referrer-Policy','리퍼러 노출 제어'],
+  'permissions-policy':['Permissions-Policy','브라우저 기능 제한'],
+  'cross-origin-opener-policy':['COOP','크로스오리진 격리'],
+  'cross-origin-resource-policy':['CORP','리소스 공유 제한'],
+};
+const LEAK_HEADERS=['server','x-powered-by','x-aspnet-version','x-aspnetmvc-version','x-generator','x-runtime','x-drupal-cache','x-varnish'];
+
+function tog(el){ const cb=el.querySelector('input'); cb.checked=!cb.checked; el.style.borderColor=cb.checked?'#00d4aa88':''; }
+function getChecks(){ return [...document.querySelectorAll('.ci input:checked')].map(i=>i.value); }
+function setMsg(m){ document.getElementById('pt').textContent=m; }
+
+function isPrivateHost(url){
+  try{
+    const h=new URL(url).hostname;
+    return /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h);
+  }catch{ return false; }
+}
+
+async function fetchHeaders(url){
+  try{
+    const r=await fetch('https://api.hackertarget.com/httpheaders/?q='+encodeURIComponent(url),{signal:AbortSignal.timeout(12000)});
+    const text=await r.text();
+    if(!text.startsWith('error')&&text.includes(':')){
+      const headers={};
+      text.split('\n').forEach(line=>{ const i=line.indexOf(':'); if(i>0){ headers[line.slice(0,i).trim().toLowerCase()]=line.slice(i+1).trim(); }});
+      return {headers,source:'external'};
+    }
+  }catch{}
+  try{
+    const r=await fetch(url,{method:'HEAD',signal:AbortSignal.timeout(8000),mode:'cors'});
+    const headers={};
+    r.headers.forEach((v,k)=>{ headers[k.toLowerCase()]=v; });
+    return {headers,source:'direct'};
+  }catch{}
+  throw new Error(isPrivateHost(url)
+    ? '로친/내부 서버는 외부 API 접근 불가. 서버에 CORS 헤더 추가 후 재시도하거나 Flask 버전을 사용하세요.'
+    : '서버 연결 실패. URL을 확인하거나 서버가 실행 중인지 확인하세요.');
+}
+
+function buildHeaderCard(headers, source){
+  const missing=[],present=[],leaky=[];
+  for(const [k,[name,desc]] of Object.entries(SECURITY_HEADERS)){
+    if(headers[k]) present.push({name,desc,val:headers[k]});
+    else missing.push({name,desc});
+  }
+  for(const k of LEAK_HEADERS){ if(headers[k]) leaky.push({name:k,val:headers[k]}); }
+  const badge=missing.length>0?`<span class="badge bd">누락 ${missing.length}개</span>`:`<span class="badge bo">양호</span>`;
+  let body=source==='direct'?`<div class="note">💡 직접 연결로 분석됨 (CORS 허용 서버)</div>`:'';
+  if(leaky.length){ body+=`<div class="sl">⚠️ 서버 정보 노출</div><table><tr><th>헤더</th><th>값</th></tr>`; leaky.forEach(h=>{body+=`<tr><td class="ylw">${h.name}</td><td>${h.val}</td></tr>`;}); body+='</table>'; }
+  if(missing.length){ body+=`<div class="sl">❌ 누락된 보안 헤더</div><table><tr><th>헤더</th><th>설명</th></tr>`; missing.forEach(h=>{body+=`<tr><td class="red">${h.name}</td><td class="dim">${h.desc}</td></tr>`;}); body+='</table>'; }
+  if(present.length){ body+=`<div class="sl">✅ 설정된 보안 헤더</div><table><tr><th>헤더</th><th>값</th></tr>`; present.forEach(h=>{body+=`<tr><td class="grn">${h.name}</td><td>${h.val}</td></tr>`;}); body+='</table>'; }
+  return card('🛡️ 보안 헤더 분석',badge,body);
+}
+
+function buildInfoCard(headers, url){
+  const p=new URL(url);
+  let body=`<div class="ig">
+    <div class="ii"><div class="lbl">프로토콜</div><div class="val">${p.protocol.replace(':','').toUpperCase()}</div></div>
+    <div class="ii"><div class="lbl">호스트</div><div class="val">${p.hostname}</div></div>`;
+  if(headers['server']) body+=`<div class="ii"><div class="lbl">서버 소프트웨어</div><div class="val ylw">${headers['server']}</div></div>`;
+  if(headers['x-powered-by']) body+=`<div class="ii"><div class="lbl">기술 스택</div><div class="val ylw">${headers['x-powered-by']}</div></div>`;
+  if(headers['content-type']) body+=`<div class="ii"><div class="lbl">Content-Type</div><div class="val">${headers['content-type']}</div></div>`;
+  body+='</div>';
+  return card('📋 서버 정보',`<span class="badge bi">정보</span>`,body);
+}
+
+function buildSSLCard(url){
+  const isHttps=url.startsWith('https://');
+  const badge=isHttps?`<span class="badge bo">HTTPS 사용</span>`:`<span class="badge bd">HTTP 전용</span>`;
+  const host=new URL(url).hostname;
+  const body=isHttps
+    ?`<p class="grn" style="margin-bottom:10px">✅ HTTPS를 사용하고 있습니다.</p><div class="note">💡 SSL 심층 분석: <a href="https://www.ssllabs.com/ssltest/analyze.html?d=${encodeURIComponent(host)}" target="_blank" style="color:#4a9eff">SSL Labs에서 확인</a></div>`
+    :`<p class="red">❌ HTTP를 사용 중입니다. HTTPS로 전환하세요.</p>`;
+  return card('🔒 SSL/HTTPS',badge,body);
+}
+
+async function fetchObservatory(host){
+  const base='https://http-observatory.security.mozilla.org/api/v1/analyze?host='+encodeURIComponent(host);
+  await fetch(base,{method:'POST',body:'rescan=false'}).catch(()=>{});
+  for(let i=0;i<12;i++){
+    await new Promise(r=>setTimeout(r,3000));
+    try{
+      const r=await fetch(base);
+      const d=await r.json();
+      if(d.state==='FINISHED'||d.grade||d.error) return d;
+    }catch{}
+  }
+  throw new Error('시간 초과 (로컈 서버는 Observatory 분석 불가)');
+}
+
+function buildObsCard(d){
+  if(d.error) return card('🏅 취약점 점수',`<span class="badge bw">불가</span>`,`<p class="dim">${d.text||d.error}</p>`);
+  const grade=d.grade||'?', score=d.score??'-';
+  const gc=grade.startsWith('A')?'#00d4aa':grade.startsWith('B')?'#4a9eff':grade.startsWith('C')?'#ffcc44':'#ff6b6b';
+  const badge=`<span class="badge" style="background:${gc}22;color:${gc};border:1px solid ${gc}44">등급 ${grade}</span>`;
+  let body=`<div class="obs-row"><div class="grade" style="background:${gc}22;color:${gc};border:2px solid ${gc}44">${grade}</div><div class="obs-info"><div style="font-size:1.1rem;font-weight:700">${score}/100점</div><div class="dim" style="font-size:.82rem;margin-top:3px">Mozilla Observatory 기준</div></div></div>`;
+  if(d.tests){
+    body+=`<div class="sl">세부 항목</div><table><tr><th>항목</th><th>결과</th><th>점수</th></tr>`;
+    Object.values(d.tests).sort((a,b)=>(a.score_modifier||0)-(b.score_modifier||0)).forEach(t=>{
+      const cls=t.pass?'grn':'red', icon=t.pass?'✓':'✗';
+      body+=`<tr><td>${t.name||'-'}</td><td class="${cls}">${icon} ${t.result||''}</td><td class="${cls}">${t.score_modifier>=0?'+':''}${t.score_modifier??0}</td></tr>`;
+    });
+    body+='</table>';
+  }
+  return card('🏅 취약점 점수',badge,body);
+}
+
+function buildErrCard(title, msg){
+  return card(title,`<span class="badge bw">분석 불가</span>`,`<div class="warn-box">⚠️ ${msg}</div>`);
+}
+
+async function scan(){
+  const raw=document.getElementById('url').value.trim();
+  if(!raw){ alert('URL을 입력하세요'); return; }
+  const sel=getChecks();
+  if(!sel.length){ alert('분석 항목을 하나 이상 선택하세요'); return; }
+
+  document.getElementById('res').style.display='none';
+  document.getElementById('prog').style.display='block';
+  document.getElementById('btn').disabled=true;
+  cardIdx=0;
+
+  const url=raw.startsWith('http')?raw:'https://'+raw;
+  const host=new URL(url).hostname;
+  document.getElementById('ru').textContent=url;
+
+  const results=[];
+  const isPrivate=isPrivateHost(url);
+
+  if(sel.includes('headers')||sel.includes('info')){
+    setMsg(isPrivate?'직접 연결 시도 중 (로컈 서버)...':'HTTP 헤더 가져오는 중...');
+    try{
+      const {headers,source}=await fetchHeaders(url);
+      if(sel.includes('headers')) results.push(buildHeaderCard(headers,source));
+      if(sel.includes('info')) results.push(buildInfoCard(headers,url));
+    }catch(e){
+      if(sel.includes('headers')) results.push(buildErrCard('🛡️ 보안 헤더 분석', e.message));
+      if(sel.includes('info')) results.push(buildErrCard('📋 서버 정보', e.message));
+    }
+  }
+
+  if(sel.includes('ssl')) results.push(buildSSLCard(url));
+
+  if(sel.includes('observatory')){
+    if(isPrivate){
+      results.push(buildErrCard('🏅 취약점 점수','로컈/내부 서버는 Mozilla Observatory 분석 불가 (공개 서버만 지원)'));
+    } else {
+      setMsg('보안 점수 분석 중 (최대 30초)...');
+      try{
+        const d=await fetchObservatory(host);
+        results.push(buildObsCard(d));
+      }catch(e){
+        results.push(buildErrCard('🏅 취약점 점수',e.message));
+      }
+    }
+  }
+
+  const container=document.getElementById('cards');
+  container.innerHTML='';
+  results.forEach(html=>{ const d=document.createElement('div'); d.innerHTML=html; container.appendChild(d.firstChild); });
+  container.querySelectorAll('.cb').forEach(b=>b.classList.add('on'));
+  container.querySelectorAll('.chv').forEach(v=>v.classList.add('on'));
+  document.getElementById('prog').style.display='none';
+  document.getElementById('res').style.display='block';
+  document.getElementById('btn').disabled=false;
+}
+
+let cardIdx=0;
+function card(title,badge,body){
+  const id='c'+(cardIdx++);
+  return `<div class="card"><div class="ch" onclick="tcb('${id}')"><div class="ct">${title} ${badge}</div><span class="chv" id="cv${id}">▼</span></div><div class="cb" id="${id}">${body}</div></div>`;
+}
+function tcb(id){ document.getElementById(id).classList.toggle('on'); document.getElementById('cv'+id).classList.toggle('on'); }
+
+document.getElementById('url').addEventListener('keydown',e=>{ if(e.key==='Enter') scan(); });
+</script>
+</body>
+</html>
